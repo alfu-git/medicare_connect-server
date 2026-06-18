@@ -11,7 +11,6 @@ app.use(cors());
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI;
-
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -23,6 +22,35 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
+
+    // all collections
+    const db = client.db("medicare-db");
+    const doctorCollection = db.collection("doctors");
+
+    ////////// DOCTOR //////////
+    // PUBLIC API----->
+    // get all doctors
+    app.get("/doctors", async (req, res) => {
+      const queryString = req.query;
+
+      let query = {};
+
+      const cursor = doctorCollection.find(query);
+      const result = await cursor.toArray();
+      res.json(result);
+    });
+
+    // get doctor by id
+    app.get("/doctors/:doctorId", async (req, res) => {
+      const doctorId = req.params;
+
+      const query = {
+        _id: new ObjectId(doctorId),
+      };
+
+      const result = await doctorCollection.findOne(query);
+      res.json(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
