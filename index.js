@@ -36,6 +36,9 @@ async function run() {
     // PUBLIC API----->
     // get all doctors
     app.get("/doctors", async (req, res) => {
+      const { page = 1, limit = 5 } = req.query;
+      const skip = (Number(page) - 1) * Number(limit);
+
       let query = {};
       let sortOption = {};
 
@@ -65,9 +68,17 @@ async function run() {
         }
       }
 
-      const cursor = doctorCollection.find(query).sort(sortOption);
+      const cursor = doctorCollection
+        .find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(Number(limit));
       const result = await cursor.toArray();
-      res.json(result);
+
+      const totalData = await doctorCollection.countDocuments();
+      const totalPage = Math.ceil(totalData / Number(limit));
+
+      res.json({ data: result, page: Number(page), totalPage, totalData });
     });
 
     // get doctor by id
