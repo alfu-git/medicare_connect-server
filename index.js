@@ -25,24 +25,54 @@ async function run() {
 
     // all collections
     const db = client.db("medicare-db");
+    const userCollection = db.collection("user");
     const doctorCollection = db.collection("doctors");
+    const appointmentCollection = db.collection("appointments");
+    const reviewCollection = db.collection("reviews");
+    const paymentCollection = db.collection("payments");
+    const prescriptionCollection = db.collection("prescriptions");
 
     ////////// DOCTOR //////////
     // PUBLIC API----->
     // get all doctors
     app.get("/doctors", async (req, res) => {
-      const queryString = req.query;
-
       let query = {};
+      let sortOption = {};
 
-      const cursor = doctorCollection.find(query);
+      // search
+      if (req.query.search) {
+        query.$or = [
+          { doctorName: { $regex: req.query.search, $options: "i" } },
+          {
+            specialization: { $regex: req.query.search, $options: "i" },
+          },
+        ];
+      }
+
+      if (req.query.sortBy) {
+        const sortField = req.query.sortBy;
+
+        if (sortField === "fee") {
+          sortOption = { consultationFee: 1 };
+        }
+
+        if (sortField === "experience") {
+          sortOption = { experience: -1 };
+        }
+
+        if (sortField === "rating") {
+          sortOption = { rating: -1 };
+        }
+      }
+
+      const cursor = doctorCollection.find(query).sort(sortOption);
       const result = await cursor.toArray();
       res.json(result);
     });
 
     // get doctor by id
     app.get("/doctors/:doctorId", async (req, res) => {
-      const doctorId = req.params;
+      const { doctorId } = req.params;
 
       const query = {
         _id: new ObjectId(doctorId),
