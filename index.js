@@ -26,10 +26,11 @@ async function run() {
     // all collections
     const db = client.db("medicare-db");
     const userCollection = db.collection("user");
-    const doctorCollection = db.collection("doctors");
-    const appointmentCollection = db.collection("appointments");
-    const reviewCollection = db.collection("reviews");
     const paymentCollection = db.collection("payments");
+    const appointmentCollection = db.collection("appointments");
+    const favDoctorCollection = db.collection("favorite-doctors");
+    const doctorCollection = db.collection("doctors");
+    const reviewCollection = db.collection("reviews");
     const prescriptionCollection = db.collection("prescriptions");
 
     // get all doctors (public)
@@ -91,13 +92,6 @@ async function run() {
       res.json(result);
     });
 
-    // post appointments (private)
-    app.post("/appointments", async (req, res) => {
-      const appointmentDoc = req.body;
-      const result = await appointmentCollection.insertOne(appointmentDoc);
-      res.json(result);
-    });
-
     // get appointments by patient id (private)
     app.get("/appointments/:patientId", async (req, res) => {
       const { patientId } = req.params;
@@ -105,6 +99,23 @@ async function run() {
         patientId: patientId,
       };
       const result = await appointmentCollection.find(query).toArray();
+      res.json(result);
+    });
+
+    // post appointments (private)
+    app.post("/appointments", async (req, res) => {
+      const appointmentDoc = req.body;
+      const result = await appointmentCollection.insertOne(appointmentDoc);
+      res.json(result);
+    });
+
+    // get payments by patient id (private)
+    app.get("/payments/:patientId", async (req, res) => {
+      const { patientId } = req.params;
+      const query = {
+        patientId: patientId,
+      };
+      const result = await paymentCollection.find(query).toArray();
       res.json(result);
     });
 
@@ -139,13 +150,13 @@ async function run() {
       res.json(result);
     });
 
-    // get payments by patient id (private)
-    app.get("/payments/:patientId", async (req, res) => {
+    // get patient favorite doctors (private)
+    app.get("/favorite-doctors/:patientId", async (req, res) => {
       const { patientId } = req.params;
       const query = {
         patientId: patientId,
       };
-      const result = await paymentCollection.find(query).toArray();
+      const result = await favDoctorCollection.find(query).toArray();
       res.json(result);
     });
 
