@@ -32,9 +32,7 @@ async function run() {
     const paymentCollection = db.collection("payments");
     const prescriptionCollection = db.collection("prescriptions");
 
-    ////////// DOCTOR //////////
-    // PUBLIC API----->
-    // get all doctors
+    // get all doctors (public)
     app.get("/doctors", async (req, res) => {
       const { page = 1, limit = 5 } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
@@ -81,7 +79,7 @@ async function run() {
       res.json({ data: result, page: Number(page), totalPage, totalData });
     });
 
-    // get doctor by id
+    // get doctor by id (public)
     app.get("/doctors/:doctorId", async (req, res) => {
       const { doctorId } = req.params;
 
@@ -90,6 +88,66 @@ async function run() {
       };
 
       const result = await doctorCollection.findOne(query);
+      res.json(result);
+    });
+
+    // post appointments (private)
+    app.post("/appointments", async (req, res) => {
+      const appointmentDoc = req.body;
+      const result = await appointmentCollection.insertOne(appointmentDoc);
+      res.json(result);
+    });
+
+    // get appointments by patient id (private)
+    app.get("/appointments/:patientId", async (req, res) => {
+      const { patientId } = req.params;
+      const query = {
+        patientId: patientId,
+      };
+      const result = await appointmentCollection.find(query).toArray();
+      res.json(result);
+    });
+
+    // post payment (private)
+    app.post("/payments", async (req, res) => {
+      const {
+        patientId,
+        doctorId,
+        doctorName,
+        consultationFee,
+        sessionId,
+        transactionId,
+      } = req.body;
+
+      const isExists = await paymentCollection.findOne({
+        sessionId,
+      });
+
+      if (isExists) {
+        return res.json({ message: "session is already exists!" });
+      }
+
+      const result = await paymentCollection.insertOne({
+        patientId,
+        doctorId,
+        doctorName,
+        consultationFee,
+        sessionId,
+        transactionId,
+        paymentDate: new Date(),
+      });
+      res.json(result);
+    });
+
+    ////////// USER //////////
+    app.get("/user/:userId", async (req, res) => {
+      const { userId } = req.params;
+
+      const query = {
+        _id: new ObjectId(userId),
+      };
+
+      const result = await userCollection.findOne(query);
       res.json(result);
     });
 
