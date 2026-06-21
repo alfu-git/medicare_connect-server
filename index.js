@@ -139,6 +139,16 @@ async function run() {
       res.json(result);
     });
 
+    // get payments by patient id (private)
+    app.get("/payments/:patientId", async (req, res) => {
+      const { patientId } = req.params;
+      const query = {
+        patientId: patientId,
+      };
+      const result = await paymentCollection.find(query).toArray();
+      res.json(result);
+    });
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
