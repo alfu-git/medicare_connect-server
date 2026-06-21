@@ -109,6 +109,16 @@ async function run() {
       res.json(result);
     });
 
+    // delete appointment (private)
+    app.delete("/appointments/:appointmentId", async (req, res) => {
+      const { appointmentId } = req.params;
+      const query = {
+        _id: new ObjectId(appointmentId),
+      };
+      const result = await appointmentCollection.deleteOne(query);
+      res.json(result);
+    });
+
     // get payments by patient id (private)
     app.get("/payments/:patientId", async (req, res) => {
       const { patientId } = req.params;
