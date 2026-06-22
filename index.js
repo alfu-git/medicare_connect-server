@@ -194,6 +194,32 @@ async function run() {
       res.json(result);
     });
 
+    // update appointment (private)
+    app.patch(
+      "/appointments/:appointmentId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+        const updatedAppointment = req.body;
+
+        const query = {
+          _id: new ObjectId(appointmentId),
+        };
+
+        const appointment = await appointmentCollection.findOne(query);
+
+        if (appointment.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await appointmentCollection.updateOne(query, {
+          $set: updatedAppointment,
+        });
+        res.json(result);
+      },
+    );
+
     // delete appointment (private)
     app.delete(
       "/appointments/:appointmentId",
