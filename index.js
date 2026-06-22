@@ -5,6 +5,7 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -32,6 +33,58 @@ async function run() {
     const doctorCollection = db.collection("doctors");
     const reviewCollection = db.collection("reviews");
     const prescriptionCollection = db.collection("prescriptions");
+
+    // token verify
+    const JWKS = createRemoteJWKSet(
+      new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+    );
+
+    const verifyToken = async (req, res, next) => {
+      const authHeader = req.headers?.authorization;
+
+      if (!authHeader) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+
+      const token = authHeader.split(" ")[1];
+
+      if (!token) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+
+      try {
+        const { payload } = await jwtVerify(token, JWKS);
+        req.user = payload;
+        next();
+      } catch (err) {
+        console.log(err);
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+    };
+
+    // patient verify
+    const verifyPatient = async (req, res, next) => {
+      if (req?.user?.role !== "patient") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    // doctor verify
+    const verifyDoctor = async (req, res, next) => {
+      if (req?.user?.role !== "doctor") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    // admin verify
+    const verifyAdmin = async (req, res, next) => {
+      if (req?.user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
 
     // get all doctors (public)
     app.get("/doctors", async (req, res) => {
@@ -93,44 +146,101 @@ async function run() {
     });
 
     // get appointments by patient id (private)
-    app.get("/appointments/:patientId", async (req, res) => {
-      const { patientId } = req.params;
-      const query = {
-        patientId: patientId,
-      };
-      const result = await appointmentCollection.find(query).toArray();
-      res.json(result);
-    });
+    app.get(
+      "/appointments/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+
+        if (req.user.id !== patientId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const query = {
+          patientId: patientId,
+        };
+        const result = await appointmentCollection.find(query).toArray();
+        res.json(result);
+      },
+    );
 
     // post appointments (private)
-    app.post("/appointments", async (req, res) => {
+    app.post("/appointments", verifyToken, verifyPatient, async (req, res) => {
       const appointmentDoc = req.body;
+      const { paymentId } = appointmentDoc;
+
+      // 1. Insert appointment
       const result = await appointmentCollection.insertOne(appointmentDoc);
+      const appointmentId = result?.insertedId.toString();
+
+      // 2. Search payment doc
+      const paymentSearchQuery = {
+        _id: new ObjectId(paymentId),
+      };
+
+      const expectedPaymentDoc =
+        await paymentCollection.findOne(paymentSearchQuery);
+
+      // 3. Insert appointmentId to payment doc
+      if (expectedPaymentDoc) {
+        await paymentCollection.updateOne(paymentSearchQuery, {
+          $set: {
+            appointmentId: appointmentId,
+          },
+        });
+      }
+
       res.json(result);
     });
 
     // delete appointment (private)
-    app.delete("/appointments/:appointmentId", async (req, res) => {
-      const { appointmentId } = req.params;
-      const query = {
-        _id: new ObjectId(appointmentId),
-      };
-      const result = await appointmentCollection.deleteOne(query);
-      res.json(result);
-    });
+    app.delete(
+      "/appointments/:appointmentId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+        const query = {
+          _id: new ObjectId(appointmentId),
+        };
+
+        const appointment = await appointmentCollection.findOne(query);
+
+        if (appointment.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await appointmentCollection.deleteOne(query);
+
+        await paymentCollection.deleteOne({ appointmentId });
+
+        res.json(result);
+      },
+    );
 
     // get payments by patient id (private)
-    app.get("/payments/:patientId", async (req, res) => {
-      const { patientId } = req.params;
-      const query = {
-        patientId: patientId,
-      };
-      const result = await paymentCollection.find(query).toArray();
-      res.json(result);
-    });
+    app.get(
+      "/payments/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+
+        if (req.user.id !== patientId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const query = {
+          patientId: patientId,
+        };
+        const result = await paymentCollection.find(query).toArray();
+        res.json(result);
+      },
+    );
 
     // post payment (private)
-    app.post("/payments", async (req, res) => {
+    app.post("/payments", verifyToken, verifyPatient, async (req, res) => {
       const {
         patientId,
         doctorId,
@@ -157,18 +267,28 @@ async function run() {
         transactionId,
         paymentDate: new Date(),
       });
-      res.json(result);
+      res.json({ insertedId: result?.insertedId });
     });
 
     // get patient favorite doctors (private)
-    app.get("/favorite-doctors/:patientId", async (req, res) => {
-      const { patientId } = req.params;
-      const query = {
-        patientId: patientId,
-      };
-      const result = await favDoctorCollection.find(query).toArray();
-      res.json(result);
-    });
+    app.get(
+      "/favorite-doctors/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+
+        if (req.user.id !== patientId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const query = {
+          patientId: patientId,
+        };
+        const result = await favDoctorCollection.find(query).toArray();
+        res.json(result);
+      },
+    );
 
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
