@@ -378,6 +378,20 @@ async function run() {
       },
     );
 
+    // post doctor data
+    app.post("/doctors", verifyToken, verifyDoctor, async (req, res) => {
+      const doctorData = req.body;
+
+      const result = await doctorCollection.insertOne(doctorData);
+
+      await userCollection.updateOne(
+        { _id: new ObjectId(doctorData.userId) },
+        { $set: { profileComplete: true } },
+      );
+
+      res.json(result);
+    });
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
