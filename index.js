@@ -62,6 +62,8 @@ async function run() {
       }
     };
 
+    //-------------------------------------- PATIENT ---------------------------------------//
+
     // patient verify
     const verifyPatient = async (req, res, next) => {
       if (req?.user?.role !== "patient") {
@@ -162,6 +164,29 @@ async function run() {
         };
         const result = await appointmentCollection.find(query).toArray();
         res.json(result);
+      },
+    );
+
+    // get appointment by appointment id
+    app.get(
+      "/appointment/:appointmentId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+        const query = {
+          _id: new ObjectId(appointmentId),
+        };
+
+        const appointment = await appointmentCollection.findOne(query);
+        console.log("appointment.patientId: ", appointment.patientId);
+        console.log("req.user.id: ", req.user.id);
+
+        if (appointment.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        res.json(appointment);
       },
     );
 
@@ -313,6 +338,43 @@ async function run() {
         };
         const result = await favDoctorCollection.find(query).toArray();
         res.json(result);
+      },
+    );
+
+    //---------------------------------------- DOCTOR ----------------------------------------//
+    // get all patient by doctor id
+    app.get(
+      "/patients/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+
+        if (req.user.id !== doctorId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        // 1. find all appointments of this doctor
+        const appointments = await appointmentCollection
+          .find({ doctorId })
+          .toArray();
+
+        // 2. extract unique patientIds
+        const patientIds = [
+          ...new Set(appointments.map((app) => app.patientId)),
+        ];
+
+        const objectIds = patientIds.map((id) => new ObjectId(id));
+
+        // 3. find patients from Users collection
+        const patients = await userCollection
+          .find({
+            _id: { $in: objectIds },
+            role: "patient",
+          })
+          .toArray();
+
+        res.send(patients);
       },
     );
 
