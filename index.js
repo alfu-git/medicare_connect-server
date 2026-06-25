@@ -195,8 +195,13 @@ async function run() {
       const appointmentDoc = req.body;
       const { paymentId } = appointmentDoc;
 
+      const appointment = {
+        ...appointmentDoc,
+        createdAt: new Date(),
+      };
+
       // 1. Insert appointment
-      const result = await appointmentCollection.insertOne(appointmentDoc);
+      const result = await appointmentCollection.insertOne(appointment);
       const appointmentId = result?.insertedId.toString();
 
       // 2. Search payment doc
@@ -391,6 +396,24 @@ async function run() {
 
       res.json(result);
     });
+
+    // get appointments by doctor id
+    app.get(
+      "/doctor-appointments/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+
+        if (req.user.id !== doctorId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await appointmentCollection.find({ doctorId }).toArray();
+
+        res.json(result);
+      },
+    );
 
     // get all payments of a specific doctor
     app.get(
