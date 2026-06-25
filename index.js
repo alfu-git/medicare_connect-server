@@ -409,6 +409,23 @@ async function run() {
       },
     );
 
+    // get reviews by doctor id
+    app.get(
+      "/doctor-reviews/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+
+        if (req.user.id !== doctorId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await reviewCollection.find({ doctorId }).toArray();
+        res.json(result);
+      },
+    );
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
