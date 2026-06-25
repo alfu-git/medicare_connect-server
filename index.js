@@ -179,8 +179,6 @@ async function run() {
         };
 
         const appointment = await appointmentCollection.findOne(query);
-        console.log("appointment.patientId: ", appointment.patientId);
-        console.log("req.user.id: ", req.user.id);
 
         if (appointment.patientId !== req.user.id) {
           return res.status(403).send({ message: "forbidden access" });
@@ -347,6 +345,24 @@ async function run() {
     );
 
     //---------------------------------------- DOCTOR ----------------------------------------//
+    // get user doctor identity
+    app.get(
+      "/doctor-identity/:userId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { userId } = req.params;
+
+        if (req.user.id !== userId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await doctorCollection.findOne({ userId });
+
+        res.json(result);
+      },
+    );
+
     // get all patient by doctor id
     app.get(
       "/patients/:doctorId",
@@ -355,7 +371,11 @@ async function run() {
       async (req, res) => {
         const { doctorId } = req.params;
 
-        if (req.user.id !== doctorId) {
+        const userDoctorIdentity = await doctorCollection.findOne({
+          userId: req.user.id,
+        });
+
+        if (userDoctorIdentity.userId !== req.user.id) {
           return res.status(403).send({ message: "forbidden access" });
         }
 
@@ -405,13 +425,43 @@ async function run() {
       async (req, res) => {
         const { doctorId } = req.params;
 
-        if (req.user.id !== doctorId) {
-          return res.status(403).send({ message: "forbidden access" });
+        const userDoctorIdentity = await doctorCollection.findOne({
+          userId: req.user.id,
+        });
+
+        if (userDoctorIdentity._id.toString() !== doctorId) {
+          return res.status(403).send({ message: "Forbidden access" });
         }
 
         const result = await appointmentCollection.find({ doctorId }).toArray();
 
         res.json(result);
+      },
+    );
+
+    // get appointment by appointment id for doctor
+    app.get(
+      "/patient-appointment-details/:appointmentId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+
+        const query = {
+          _id: new ObjectId(appointmentId),
+        };
+
+        const appointment = await appointmentCollection.findOne(query);
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(appointment.doctorId),
+        });
+
+        if (doctorDoc.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        res.json(appointment);
       },
     );
 
@@ -423,7 +473,11 @@ async function run() {
       async (req, res) => {
         const { doctorId } = req.params;
 
-        if (req.user.id !== doctorId) {
+        const userDoctorIdentity = await doctorCollection.findOne({
+          userId: req.user.id,
+        });
+
+        if (userDoctorIdentity.userId !== req.user.id) {
           return res.status(403).send({ message: "forbidden access" });
         }
 
@@ -440,7 +494,11 @@ async function run() {
       async (req, res) => {
         const { doctorId } = req.params;
 
-        if (req.user.id !== doctorId) {
+        const userDoctorIdentity = await doctorCollection.findOne({
+          userId: req.user.id,
+        });
+
+        if (userDoctorIdentity.userId !== req.user.id) {
           return res.status(403).send({ message: "forbidden access" });
         }
 
