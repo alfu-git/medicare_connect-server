@@ -392,6 +392,23 @@ async function run() {
       res.json(result);
     });
 
+    // get all payments of a specific doctor
+    app.get(
+      "/doctor-payments/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+
+        if (req.user.id !== doctorId) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await paymentCollection.find({ doctorId }).toArray();
+        res.json(result);
+      },
+    );
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
