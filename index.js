@@ -465,6 +465,39 @@ async function run() {
       },
     );
 
+    // update appointment status
+    app.patch(
+      "/doctor-appointment/:appointmentId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+        const { appointmentStatus } = req.body;
+
+        const query = {
+          _id: new ObjectId(appointmentId),
+        };
+
+        const appointmentDoc = await appointmentCollection.findOne(query);
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(appointmentDoc?.doctorId),
+        });
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await appointmentCollection.updateOne(query, {
+          $set: {
+            appointmentStatus,
+          },
+        });
+
+        res.json(result);
+      },
+    );
+
     // get all payments of a specific doctor
     app.get(
       "/doctor-payments/:doctorId",
