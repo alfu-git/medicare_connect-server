@@ -537,6 +537,73 @@ async function run() {
       },
     );
 
+    // modify(delete) doctor schedule
+    app.delete(
+      "/schedule/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+        const deletedSchedule = req.body;
+
+        const query = {
+          _id: new ObjectId(doctorId),
+        };
+
+        const doctorDoc = await doctorCollection.findOne(query);
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await doctorCollection.updateOne(query, {
+          $pull: {
+            availableDays: { $in: deletedSchedule.deletedScheduleDays },
+            availableSlots: { $in: deletedSchedule.deletedScheduleSlots },
+          },
+        });
+        console.log(result);
+
+        res.json(result);
+      },
+    );
+
+    // post prescription
+    app.post(
+      "/doctor-prescriptions",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const prescriptionDoc = req.body;
+        const prescription = {
+          ...prescriptionDoc,
+          createdAt: new Date(),
+        };
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(prescriptionDoc.doctorId),
+        });
+
+        if (doctorDoc.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await prescriptionCollection.insertOne(prescriptionDoc);
+
+        const appointmentQuery = {
+          _id: new ObjectId(prescriptionDoc.appointmentId),
+        };
+
+        await appointmentCollection.updateOne(appointmentQuery, {
+          $set: {
+            appointmentStatus: "completed",
+          },
+        });
+
+        res.json(result);
+      },
+    );
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
