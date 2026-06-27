@@ -601,6 +601,34 @@ async function run() {
       },
     );
 
+    // get prescription by appointment id
+    app.get(
+      "/doctor-prescription/:appointmentId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { appointmentId } = req.params;
+
+        const appointmentDoc = await appointmentCollection.findOne({
+          _id: new ObjectId(appointmentId),
+        });
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(appointmentDoc?.doctorId),
+        });
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await prescriptionCollection.findOne({
+          appointmentId: appointmentId,
+        });
+
+        res.json(result);
+      },
+    );
+
     // post prescription
     app.post(
       "/doctor-prescriptions",
