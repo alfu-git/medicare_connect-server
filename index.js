@@ -507,6 +507,36 @@ async function run() {
       },
     );
 
+    // update doctor schedule
+    app.patch(
+      "/schedule/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+        const newSchedule = req.body;
+
+        const query = {
+          _id: new ObjectId(doctorId),
+        };
+
+        const doctorDoc = await doctorCollection.findOne(query);
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await doctorCollection.updateOne(query, {
+          $addToSet: {
+            availableDays: { $each: newSchedule.availableDays },
+            availableSlots: { $each: newSchedule.availableSlots },
+          },
+        });
+
+        res.json(result);
+      },
+    );
+
     ////////// USER //////////
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
