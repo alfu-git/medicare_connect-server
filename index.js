@@ -119,6 +119,31 @@ async function run() {
       },
     );
 
+    // update patient profile
+    app.patch(
+      "/update-patient-profile/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+        const updatedData = req.body;
+
+        const query = {
+          _id: new ObjectId(patientId),
+        };
+
+        if (patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await userCollection.updateOne(query, {
+          $set: updatedData,
+        });
+
+        res.json(result);
+      },
+    );
+
     // get all doctors (public)
     app.get("/doctors", async (req, res) => {
       const { page = 1, limit = 5 } = req.query;
@@ -655,6 +680,32 @@ async function run() {
         const result = await prescriptionCollection.findOne({
           appointmentId: appointmentId,
         });
+
+        res.json(result);
+      },
+    );
+
+    // get prescription by doctor id
+    app.get(
+      "/get-doctor-prescriptions/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+
+        const query = {
+          _id: new ObjectId(doctorId),
+        };
+
+        const doctorDoc = await doctorCollection.findOne(query);
+
+        if (doctorDoc.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await prescriptionCollection
+          .find({ doctorId: doctorId })
+          .toArray();
 
         res.json(result);
       },
