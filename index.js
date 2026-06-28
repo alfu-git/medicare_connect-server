@@ -711,6 +711,32 @@ async function run() {
       },
     );
 
+    // get prescription by prescription id
+    app.get(
+      "/doctor-prescriptions/:prescriptionId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { prescriptionId } = req.params;
+
+        const query = {
+          _id: new ObjectId(prescriptionId),
+        };
+
+        const prescription = await prescriptionCollection.findOne(query);
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(prescription?.doctorId),
+        });
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        res.json(prescription);
+      },
+    );
+
     // post prescription
     app.post(
       "/doctor-prescriptions",
@@ -731,7 +757,7 @@ async function run() {
           return res.status(403).send({ message: "forbidden access" });
         }
 
-        const result = await prescriptionCollection.insertOne(prescriptionDoc);
+        const result = await prescriptionCollection.insertOne(prescription);
 
         const appointmentQuery = {
           _id: new ObjectId(prescriptionDoc.appointmentId),
@@ -740,6 +766,39 @@ async function run() {
         await appointmentCollection.updateOne(appointmentQuery, {
           $set: {
             appointmentStatus: "completed",
+          },
+        });
+
+        res.json(result);
+      },
+    );
+
+    // update prescription
+    app.patch(
+      "/update-doctor-prescription/:prescriptionId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { prescriptionId } = req.params;
+        const updatedPrescription = req.body;
+
+        const query = {
+          _id: new ObjectId(prescriptionId),
+        };
+
+        const prescription = await prescriptionCollection.findOne(query);
+
+        const doctorDoc = await doctorCollection.findOne({
+          _id: new ObjectId(prescription?.doctorId),
+        });
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        const result = await prescriptionCollection.updateOne(query, {
+          $set: {
+            ...updatedPrescription,
           },
         });
 
