@@ -473,6 +473,33 @@ async function run() {
       res.json(result);
     });
 
+    // update doctor profile
+    app.patch(
+      "/doctor-profile/:doctorId",
+      verifyToken,
+      verifyDoctor,
+      async (req, res) => {
+        const { doctorId } = req.params;
+        const updatedData = req.body;
+
+        const query = {
+          _id: new ObjectId(doctorId),
+        };
+
+        const doctorDoc = await doctorCollection.findOne(query);
+
+        if (doctorDoc?.userId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        const result = await doctorCollection.updateOne(query, {
+          $set: updatedData,
+        });
+
+        res.json(result);
+      },
+    );
+
     // get appointments by doctor id
     app.get(
       "/doctor-appointments/:doctorId",
