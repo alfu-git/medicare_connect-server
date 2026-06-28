@@ -88,6 +88,37 @@ async function run() {
       next();
     };
 
+    //------------------------------------------ PATIENT -----------------------------------------//
+    // complete patient profile
+    app.patch(
+      "/complete-patient-profile/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+        const updatedData = req.body;
+
+        const updatedDoc = {
+          ...updatedData,
+          profileComplete: true,
+        };
+
+        const query = {
+          _id: new ObjectId(patientId),
+        };
+
+        if (patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+
+        const result = await userCollection.updateOne(query, {
+          $set: updatedDoc,
+        });
+
+        res.json(result);
+      },
+    );
+
     // get all doctors (public)
     app.get("/doctors", async (req, res) => {
       const { page = 1, limit = 5 } = req.query;
@@ -344,7 +375,7 @@ async function run() {
       },
     );
 
-    //---------------------------------------- DOCTOR ----------------------------------------//
+    //------------------------------------------ DOCTOR ------------------------------------------//
     // get user doctor identity
     app.get(
       "/doctor-identity/:userId",
@@ -665,7 +696,7 @@ async function run() {
       },
     );
 
-    ////////// USER //////////
+    //----------------------------------------- USER --------------------------------------------//
     app.get("/user/:userId", async (req, res) => {
       const { userId } = req.params;
 
