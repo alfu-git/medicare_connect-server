@@ -913,6 +913,12 @@ async function run() {
       res.json(result);
     });
 
+    // get total users
+    app.get("/total-users", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.json(result);
+    });
+
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
