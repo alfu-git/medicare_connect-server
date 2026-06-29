@@ -971,7 +971,7 @@ async function run() {
           _id: new ObjectId(doctorId),
         };
 
-        const result = await doctorCollection.findOne(query, {
+        const result = await doctorCollection.updateOne(query, {
           $set: updatedStatus,
         });
 
