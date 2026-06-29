@@ -62,8 +62,6 @@ async function run() {
       }
     };
 
-    //-------------------------------------- PATIENT ---------------------------------------//
-
     // patient verify
     const verifyPatient = async (req, res, next) => {
       if (req?.user?.role !== "patient") {
@@ -88,7 +86,19 @@ async function run() {
       next();
     };
 
-    //------------------------------------------ PATIENT -----------------------------------------//
+    //---------------------------------------- USER ------------------------------------------//
+    app.get("/user/:userId", async (req, res) => {
+      const { userId } = req.params;
+
+      const query = {
+        _id: new ObjectId(userId),
+      };
+
+      const result = await userCollection.findOne(query);
+      res.json(result);
+    });
+
+    //---------------------------------------- PATIENT ---------------------------------------//
     // complete patient profile
     app.patch(
       "/complete-patient-profile/:patientId",
@@ -210,7 +220,6 @@ async function run() {
       verifyPatient,
       async (req, res) => {
         const { patientId } = req.params;
-        console.log(patientId);
 
         if (req.user.id !== patientId) {
           return res.status(403).send({ message: "forbidden access" });
@@ -219,7 +228,9 @@ async function run() {
         const query = {
           patientId: patientId,
         };
+
         const result = await appointmentCollection.find(query).toArray();
+
         res.json(result);
       },
     );
@@ -864,15 +875,41 @@ async function run() {
       },
     );
 
-    //----------------------------------------- USER --------------------------------------------//
-    app.get("/user/:userId", async (req, res) => {
-      const { userId } = req.params;
-
+    //---------------------------------------- ADMIN ---------------------------------------//
+    // get total patient
+    app.get("/total-patients", verifyToken, verifyAdmin, async (req, res) => {
       const query = {
-        _id: new ObjectId(userId),
+        role: "patient",
       };
 
-      const result = await userCollection.findOne(query);
+      const result = await userCollection.find(query).toArray();
+
+      res.json(result);
+    });
+
+    // get total doctors
+    app.get("/total-doctors", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await doctorCollection.find().toArray();
+
+      res.json(result);
+    });
+
+    // get total appointments
+    app.get(
+      "/total-appointments",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await appointmentCollection.find().toArray();
+
+        res.json(result);
+      },
+    );
+
+    // get total payments
+    app.get("/total-payments", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+
       res.json(result);
     });
 
