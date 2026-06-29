@@ -958,6 +958,27 @@ async function run() {
       },
     );
 
+    // update doctor status
+    app.patch(
+      "/update-doctor-status/:doctorId",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { doctorId } = req.params;
+        const updatedStatus = req.body;
+
+        const query = {
+          _id: new ObjectId(doctorId),
+        };
+
+        const result = await doctorCollection.findOne(query, {
+          $set: updatedStatus,
+        });
+
+        res.json(result);
+      },
+    );
+
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
