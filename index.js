@@ -919,6 +919,45 @@ async function run() {
       res.json(result);
     });
 
+    // update user status
+    app.patch(
+      "/update-user-status/:userId",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { userId } = req.params;
+        const updatedStatus = req.body;
+
+        const query = {
+          _id: new ObjectId(userId),
+        };
+
+        const result = await userCollection.updateOne(query, {
+          $set: updatedStatus,
+        });
+
+        res.json(result);
+      },
+    );
+
+    // delete user
+    app.delete(
+      "/delete-user/:userId",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { userId } = req.params;
+
+        const query = {
+          _id: new ObjectId(userId),
+        };
+
+        const result = await userCollection.deleteOne(query);
+
+        res.json(result);
+      },
+    );
+
     // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
