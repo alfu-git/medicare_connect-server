@@ -249,6 +249,10 @@ async function run() {
       const appointmentDoc = req.body;
       const { paymentId } = appointmentDoc;
 
+      if (appointmentDoc.patientId !== req.user.id) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+
       const appointment = {
         ...appointmentDoc,
         createdAt: new Date(),
@@ -323,9 +327,31 @@ async function run() {
 
         const result = await appointmentCollection.deleteOne(query);
 
-        await paymentCollection.deleteOne({ appointmentId });
+        await paymentCollection.deleteOne({ appointmentId: appointmentId });
 
         res.json(result);
+      },
+    );
+
+    // get prescription by appointment id
+    app.get(
+      "/patient-prescription/:appointmentId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        {
+          const { appointmentId } = req.params;
+
+          const prescription = await prescriptionCollection.findOne({
+            appointmentId: appointmentId,
+          });
+
+          if (prescription?.patientId !== req.user.id) {
+            return res.status(403).send({ message: "forbidden access!" });
+          }
+
+          res.json(prescription);
+        }
       },
     );
 
@@ -359,6 +385,10 @@ async function run() {
         sessionId,
         transactionId,
       } = req.body;
+
+      if (patientId !== req.user.id) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
 
       const isExists = await paymentCollection.findOne({
         sessionId,
