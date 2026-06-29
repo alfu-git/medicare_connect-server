@@ -442,6 +442,56 @@ async function run() {
       },
     );
 
+    // post review
+    app.post(
+      "/patient-review",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const reviewDoc = req.body;
+        const review = {
+          ...reviewDoc,
+          createdAt: new Date(),
+        };
+
+        if (reviewDoc?.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        const result = await reviewCollection.insertOne(review);
+
+        const query = {
+          _id: new ObjectId(reviewDoc?.doctorId),
+        };
+
+        const doctor = await doctorCollection.findOne(query);
+
+        // update doctor avgRating
+        const newTotalReviews = doctor?.totalReviews + 1;
+
+        const newAvgRating =
+          (doctor.avgRating * doctor.totalReviews + reviewDoc.rating) /
+          newTotalReviews;
+
+        // 4. update doctor
+        await doctorCollection.updateOne(query, {
+          $set: {
+            avgRating: newAvgRating,
+            totalReviews: newTotalReviews,
+          },
+        });
+
+        await appointmentCollection.updateOne(
+          { _id: new ObjectId(reviewDoc?.appointmentId) },
+          {
+            $set: { review: "completed" },
+          },
+        );
+
+        res.json(result);
+      },
+    );
+
     //-----------------------------------------DOCTOR-----------------------------------------//
     // get user doctor identity
     app.get(
