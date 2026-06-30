@@ -442,6 +442,26 @@ async function run() {
       },
     );
 
+    // get review by patient id
+    app.get(
+      "/patient-reviews/:patientId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { patientId } = req.params;
+
+        if (patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        const result = await reviewCollection
+          .find({ patientId: patientId })
+          .toArray();
+
+        res.json(result);
+      },
+    );
+
     // post review
     app.post(
       "/patient-review",
@@ -485,6 +505,110 @@ async function run() {
           { _id: new ObjectId(reviewDoc?.appointmentId) },
           {
             $set: { review: "completed" },
+          },
+        );
+
+        res.json(result);
+      },
+    );
+
+    // update review
+    app.patch(
+      "/patient-review/:reviewId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { reviewId } = req.params;
+        const updatedReviewDoc = req.body;
+
+        const query = {
+          _id: new ObjectId(reviewId),
+        };
+
+        const reviewDoc = await reviewCollection.findOne(query);
+
+        if (reviewDoc?.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        // update review
+        const result = await reviewCollection.updateOne(query, {
+          $set: {
+            ...updatedReviewDoc,
+            updatedAt: new Date(),
+          },
+        });
+
+        const doctorQuery = {
+          _id: new ObjectId(reviewDoc?.doctorId),
+        };
+
+        const doctor = await doctorCollection.findOne(doctorQuery);
+
+        // update doctor avgRating
+        const newAvgRating =
+          (doctor.avgRating * doctor.totalReviews -
+            reviewDoc.rating +
+            updatedReviewDoc.rating) /
+          doctor.totalReviews;
+
+        await doctorCollection.updateOne(doctorQuery, {
+          $set: {
+            avgRating: newAvgRating,
+          },
+        });
+
+        res.json(result);
+      },
+    );
+
+    // delete review
+    app.delete(
+      "/patient-review/:reviewId",
+      verifyToken,
+      verifyPatient,
+      async (req, res) => {
+        const { reviewId } = req.params;
+
+        const query = {
+          _id: new ObjectId(reviewId),
+        };
+
+        const reviewDoc = await reviewCollection.findOne(query);
+
+        if (reviewDoc?.patientId !== req.user.id) {
+          return res.status(403).send({ message: "forbidden access!" });
+        }
+
+        // delete review
+        const result = await reviewCollection.deleteOne(query);
+
+        const doctorQuery = {
+          _id: new ObjectId(reviewDoc?.doctorId),
+        };
+
+        const doctor = await doctorCollection.findOne(doctorQuery);
+
+        // update doctor avgRating
+        const newTotalReviews = doctor.totalReviews - 1;
+
+        const newAvgRating =
+          newTotalReviews === 0
+            ? 0
+            : (doctor.avgRating * doctor.totalReviews - reviewDoc.rating) /
+              newTotalReviews;
+
+        await doctorCollection.updateOne(doctorQuery, {
+          $set: {
+            avgRating: newAvgRating,
+            totalReviews: newTotalReviews,
+          },
+        });
+
+        await appointmentCollection.updateOne(
+          { _id: new ObjectId(reviewDoc?.appointmentId) },
+          {
+            $set: { review: "pending" },
           },
         );
 
