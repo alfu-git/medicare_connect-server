@@ -20,6 +20,63 @@ const client = new MongoClient(uri, {
   },
 });
 
+// send email
+const nodemailer = require("nodemailer");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
+app.post("/send-email", (req, res) => {
+  const { name, email } = req.query;
+
+  const mailOptions = {
+    from: `"MediCare Connect" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Welcome to MediCare Connect 🎉",
+    html: `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      
+      <h2 style="color: #2c7be5;">Welcome to MediCare Connect, ${name}! 👋</h2>
+      
+      <p>
+        We're thrilled to have you on board. Thank you for joining 
+        <strong>MediCare Connect</strong> — your trusted healthcare companion.
+      </p>
+
+      <p>
+        You can now easily book appointments, connect with doctors, 
+        and manage your health—all in one place.
+      </p>
+
+      <p>
+        If you have any questions or need assistance, feel free to reach out to us anytime.
+      </p>
+
+      <br />
+
+      <p style="margin-top: 20px;">
+        Best regards,<br />
+        <strong>The MediCare Connect Team</strong>
+      </p>
+
+      <hr style="margin-top: 30px;" />
+
+      <small style="color: #888;">
+        This is an automated message. Please do not reply directly to this email.
+      </small>
+      
+    </div>
+  `,
+  };
+
+  transporter.sendMail(mailOptions);
+});
+
 async function run() {
   try {
     // await client.connect();
